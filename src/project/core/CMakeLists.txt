@@ -4,16 +4,23 @@ project(core)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(CONVERT_SRC
+	convert.h
+	convert.cpp
+)
+
 set(MAIN_SRC
 	main.cpp
 )
 
 set(SRCS 
 	${MAIN_SRC}
+	${CONVERT_SRC}
 )
 
 #筛选显示
 source_group(main FILES ${MAIN_SRC})
+source_group(convert FILES ${CONVERT_SRC})
 
 #包含目录
 include_directories(${CMAKE_CURRENT_BINARY_DIR}

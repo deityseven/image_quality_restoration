@@ -1,0 +1,10 @@
+0. 参考文档安装cuda环境 https://www.cnblogs.com/Hakurei-Reimu-Zh/p/14999269.html
+1. 下载ffmpeg完整版 https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-6.1.1-full_build.7z
+2. 创建ffmpeg环境变量 ffmpeg_home
+3. 将 %ffmpeg_home%\bin 添加到系统环境变量path中
+4. codefomer安装 git clone https://github.com/deityseven/CodeFormer.git
+5. 安装Anaconda
+5. 创建虚拟环境codefomer python3.8.18
+6. 进入虚拟环境 进入codefomer目录 执行pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple
+7. 编译codeformer   python basicsr/setup.py develop
+8. 下载学习模型 

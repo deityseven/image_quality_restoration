@@ -1,0 +1,26 @@
+查看支持cuda的编解码器
+ffmpeg -codecs | findstr cuvid
+
+查看视频帧率
+ffprobe -i E:\DVD\legend_of_sword_fairy\video\VTS_01_1.VOB
+
+保存音频
+ffmpeg -i E:\DVD\legend_of_sword_fairy\video\VTS_01_1.VOB -vn -acodec copy 1.mp2
+
+抽帧
+ffmpeg -i test.mp4 path_to_image/%05d.png
+
+使用cuda加速抽帧
+ffmpeg -i <input> -vcodec h264_nvenc <output>
+ffmpeg -hwaccel_output_format cuda -f mpeg -vcodec mpeg2_cuvid -i E:\DVD\legend_of_sword_fairy\video\VTS_01_1.VOB E:\DVD\legend_of_sword_fairy\images\%20d.png
+#ffmpeg -f mpeg -r 29.97 -vcodec mpeg2_cuvid -i E:\DVD\legend_of_sword_fairy\video\VTS_01_1.VOB E:\DVD\legend_of_sword_fairy\images\%10d.png
+
+修复命令
+E:\Github_Project\temp\realesrgan-ncnn-vulkan.exe -i E:\DVD\legend_of_sword_fairy\test\007747.png -o E:\DVD\legend_of_sword_fairy\test\out.png -n realesrgan-x4plus
+
+
+ffmpeg -i E:\DVD\legend_of_sword_fairy\video\VTS_01_1.VOB -vf yadif E:\DVD\legend_of_sword_fairy\video\1.mp4
+
+ffmpeg -hwaccel_output_format cuda -f mpeg -vcodec mpeg2_cuvid -i E:\DVD\legend_of_sword_fairy\video\VTS_01_1.VOB -vf yadif E:\DVD\legend_of_sword_fairy\video\1.mp4
+
+python inference_codeformer.py --bg_upsampler realesrgan --face_upsample -w 0 --input_path E:\DVD\legend_of_sword_fairy\video\1.mp4

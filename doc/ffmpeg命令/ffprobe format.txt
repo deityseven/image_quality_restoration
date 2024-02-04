@@ -1,0 +1,14 @@
+{
+    "format": {
+        "filename": "E:\\DVD\\legend_of_sword_fairy\\video\\VTS_01_1.VOB",
+        "nb_streams": 3,
+        "nb_programs": 0,
+        "format_name": "mpeg",
+        "format_long_name": "MPEG-PS (MPEG-2 Program Stream)",
+        "start_time": "0.228411",
+        "duration": "2238.456000",
+        "size": "1073565696",
+        "bit_rate": "3836807",
+        "probe_score": 26
+    }
+}

@@ -1,0 +1,1 @@
+realesrgan-ncnn-vulkan -i ./input -o ./output -n realesrgan-x4plus
