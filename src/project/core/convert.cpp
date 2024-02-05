@@ -5,6 +5,7 @@
 #include <direct.h>
 #include <qprocess.h>
 #include <qdir.h>
+#include <qdebug.h>
 
 Convert::Convert(const std::string input, const std::string output)
 	:input(input),
@@ -38,14 +39,15 @@ void Convert::getSecondsCount()
 	memset(this->command, 0, this->bufferSize);
 	memset(this->buffer, 0, this->bufferSize);
 
-	sprintf(this->command, "%s/bin/ffprobe.exe -loglevel quiet -print_format json -show_format -i %s 2>&1", this->ffmpegHome.c_str(), this->input.c_str());
-
-	QProcess process;
-	process.start(this->command, QIODevice::OpenModeFlag::ReadOnly);
-	process.waitForStarted();
-	process.waitForFinished();
-	std::string jsonData = process.readAll().toStdString();
+	sprintf(this->command, "%s/bin/ffprobe.exe -loglevel quiet -print_format json -show_format -i %s", this->ffmpegHome.c_str(), this->input.c_str());
 	
+	QProcess process;
+	process.start(this->command, QIODevice::OpenModeFlag::ReadWrite);
+	process.waitForStarted();
+	process.waitForReadyRead();
+	process.waitForFinished(-1);
+	std::string jsonData = process.readAll().toStdString();
+
 	auto json = nlohmann::json::parse(jsonData);
 
 	this->secondsCount = std::stoi(json["format"]["duration"].get<std::string>());
@@ -60,9 +62,16 @@ void Convert::startConvert()
 	system("mkdir .\\secondsVideos");
 	system("mkdir .\\finalVideos");
 
+	memset(this->buffer, 0, this->bufferSize);
+	_getcwd(this->buffer, this->bufferSize);
+	std::string pwd(this->buffer);
+
 	for (this->currentSeconds = 0; this->currentSeconds < this->secondsCount; ++this->currentSeconds)
 	{
+		_chdir(pwd.c_str());
 		system("rmdir .\\temp /s /q");
+		system("rmdir .\\merge /s /q");
+		system("mkdir .\\merge");
 
 		outputOneSecondsToTemp(this->currentSeconds);
 		peelOneSecondsAudio(this->currentSeconds);
@@ -85,39 +94,37 @@ void Convert::outputOneSecondsToTemp(unsigned long currentSeconds)
 	memset(this->command, 0, this->bufferSize);
 	sprintf(this->command, "%s/bin/ffmpeg.exe -loglevel quiet"
 		" -ss %d"
-		" -t %d"
+		" -t 1"
 		" -i %s"
 		" -c copy"
-		" ./temp/%08d.mp4"
-		" 2>&1",
+		" ./temp/%08d.mp4",
 		this->ffmpegHome.c_str(),
 		currentSeconds,
-		currentSeconds + 1,
 		this->input.c_str(),
 		currentSeconds);
 
 	QProcess process;
 	process.start(this->command, QIODevice::OpenModeFlag::ReadOnly);
 	process.waitForStarted();
-	process.waitForFinished();
+	process.waitForFinished(-1);
 }
 
 void Convert::peelOneSecondsAudio(unsigned long currentSeconds)
 {
 	memset(this->command, 0, this->bufferSize);
-	sprintf(this->command, "%s/bin/ffmpeg.exe -loglevel quiet -i ./temp/%08d.mp4 -vn -acodec copy -c:a aac ./temp/%08d.mp3 -y", this->ffmpegHome.c_str(), currentSeconds, currentSeconds);
+	sprintf(this->command, "%s/bin/ffmpeg.exe -loglevel quiet -i ./temp/%08d.mp4 -vn -acodec copy -c:a aac ./merge/%08d.aac -y", this->ffmpegHome.c_str(), currentSeconds, currentSeconds);
 
 	QProcess process;
 	process.start(this->command, QIODevice::OpenModeFlag::ReadOnly);
 	process.waitForStarted();
-	process.waitForFinished();
+	process.waitForFinished(-1);
 
 	memset(this->command, 0, this->bufferSize);
 	sprintf(this->command, "%s/bin/ffmpeg.exe -loglevel quiet -i ./temp/%08d.mp4 -an -vcodec copy ./temp/%08d.mp4 -y", this->ffmpegHome.c_str(), currentSeconds, currentSeconds);
 
 	process.start(this->command, QIODevice::OpenModeFlag::ReadOnly);
 	process.waitForStarted();
-	process.waitForFinished();
+	process.waitForFinished(-1);
 }
 
 void Convert::outputOneSecondsImage(unsigned long currentSeconds)
@@ -130,7 +137,7 @@ void Convert::outputOneSecondsImage(unsigned long currentSeconds)
 	QProcess process;
 	process.start(this->command, QIODevice::OpenModeFlag::ReadOnly);
 	process.waitForStarted();
-	process.waitForFinished();
+	process.waitForFinished(-1);
 }
 
 void Convert::distinctProcess(unsigned long currentSeconds)
@@ -140,13 +147,13 @@ void Convert::distinctProcess(unsigned long currentSeconds)
 	system("mkdir .\\temp\\codeformer");
 
 	memset(this->command, 0, this->bufferSize);
-	sprintf(this->command, "%s/realesrgan-ncnn-vulkan.exe -i ./temp/images -o ./temp/x4images -n realesrgan-x4plus 2>&1", 
+	sprintf(this->command, "%s/realesrgan-ncnn-vulkan.exe -i ./temp/images -o ./temp/x4images -n realesrgan-x4plus", 
 		this->realesrganHome.c_str(), currentSeconds);
 
 	QProcess process;
 	process.start(this->command, QIODevice::OpenModeFlag::ReadOnly);
 	process.waitForStarted();
-	process.waitForFinished();
+	process.waitForFinished(-1);
 
 	//////////////////////////////////////
 	//保存当前工作目录
@@ -157,7 +164,7 @@ void Convert::distinctProcess(unsigned long currentSeconds)
 	std::string newPwd = this->codeFormerNcnnHome + "/bin";
 	
 	memset(this->command, 0, this->bufferSize);
-	sprintf(this->command, "%s/bin/ncnn_codeformer.exe %s/temp/x4images 0 %s/temp/x8images 2>&1",
+	sprintf(this->command, "%s/bin/ncnn_codeformer.exe %s/temp/x4images 0 %s/temp/x8images",
 		this->codeFormerNcnnHome.c_str(),
 		pwd.c_str(),
 		pwd.c_str()
@@ -166,7 +173,7 @@ void Convert::distinctProcess(unsigned long currentSeconds)
 	process.setWorkingDirectory(QString::fromStdString(newPwd));
 	process.start(this->command, QIODevice::OpenModeFlag::ReadOnly);
 	process.waitForStarted();
-	process.waitForFinished();
+	process.waitForFinished(-1);
 
 	////////////////////////////////////
 	//进入虚拟环境 codefomer
@@ -175,15 +182,16 @@ void Convert::distinctProcess(unsigned long currentSeconds)
 	newPwd = this->codeFormerHome;
 
 	memset(this->command, 0, this->bufferSize);
-	sprintf(this->command, "conda activate codefomer & python inference_codeformer.py -w 0 -i %s/temp/x8images -o %s/temp/codeformer 2>&1",
+	sprintf(this->command, "C:/Users/deityqi/.conda/envs/codefomer/python inference_codeformer.py -w 0 -i %s/temp/x8images -o %s/temp/codeformer",
 		pwd.c_str(),
 		pwd.c_str()
 	);
 
 	process.setWorkingDirectory(QString::fromStdString(newPwd));
+	//process.start("conda activate codefomer" , QIODevice::OpenModeFlag::ReadOnly);
 	process.start(this->command, QIODevice::OpenModeFlag::ReadOnly);
 	process.waitForStarted();
-	process.waitForFinished();
+	process.waitForFinished(-1);
 }
 
 void Convert::mergeImagesToVideo(unsigned long currentSeconds)
@@ -194,14 +202,14 @@ void Convert::mergeImagesToVideo(unsigned long currentSeconds)
 	sprintf(this->command, "%s/bin/ffmpeg.exe -f image2", this->ffmpegHome.c_str());
 	char outFile[40];
 	memset(outFile, 0, 40);
-	sprintf(outFile, " ./merge/%08d.mp4 2>&1", currentSeconds);
+	sprintf(outFile, " ./merge/%08d.mp4", currentSeconds);
 	strcat(this->command, " -i ./temp/codeformer/final_results/%08d.png -vcodec libx264 -r 60 -b:v 35m -crf 0 -vf scale=2560:1440");
 	strcat(this->command, outFile);
 
 	QProcess process;
 	process.start(this->command, QIODevice::OpenModeFlag::ReadOnly);
 	process.waitForStarted();
-	process.waitForFinished();
+	process.waitForFinished(-1);
 }
 
 void Convert::mergeAudioToVideo(unsigned long currentSeconds)
@@ -216,7 +224,7 @@ void Convert::mergeAudioToVideo(unsigned long currentSeconds)
 	memset(audioPath, 0, 40);
 	memset(outputPath, 0, 40);
 	sprintf(videoPath, "./merge/%08d.mp4", currentSeconds);
-	sprintf(audioPath, "./merge/%08d.mp3", currentSeconds);
+	sprintf(audioPath, "./merge/%08d.aac", currentSeconds);
 	sprintf(outputPath, "./secondsVideos/%08d.mp4", currentSeconds);
 	//ffmpeg -i video.mp4 -i audio.mp3 -c:v copy -c:a aac output.mp4
 	sprintf(this->command, "%s/bin/ffmpeg.exe -i %s -i %s -c:v copy -c:a aac %s", 
@@ -228,7 +236,7 @@ void Convert::mergeAudioToVideo(unsigned long currentSeconds)
 	QProcess process;
 	process.start(this->command, QIODevice::OpenModeFlag::ReadOnly);
 	process.waitForStarted();
-	process.waitForFinished();
+	process.waitForFinished(-1);
 }
 
 void Convert::mergeAllVideo()
@@ -244,7 +252,7 @@ void Convert::mergeAllVideo()
 	QProcess process;
 	process.start(this->command, QIODevice::OpenModeFlag::ReadOnly);
 	process.waitForStarted();
-	process.waitForFinished();
+	process.waitForFinished(-1);
 
 	//ts流 合并 mp4
 	QDir finalVideos("./finalVideos");
@@ -261,5 +269,5 @@ void Convert::mergeAllVideo()
 
 	process.start(this->command, QIODevice::OpenModeFlag::ReadOnly);
 	process.waitForStarted();
-	process.waitForFinished();
+	process.waitForFinished(-1);
 }

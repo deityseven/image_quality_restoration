@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 #设置搜索路径
 if(WIN32)
-set(CMAKE_PREFIX_PATH D:/Qt/Qt5.12.4/5.12.4/msvc2015_64)
+set(CMAKE_PREFIX_PATH C:/base/Qt/Qt5.14.2/5.14.2/msvc2017_64)
 endif(WIN32)
 if(UNIX)
 set(CMAKE_PREFIX_PATH /opt/Qt5.12.4/5.12.4/gcc_64)

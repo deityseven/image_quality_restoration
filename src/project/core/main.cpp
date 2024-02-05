@@ -1,6 +1,7 @@
 #include <iostream>
 #include <getopt/getopt.hpp>
 #include "convert.h"
+#include <qapplication.h>
 
 void useage()
 {
@@ -20,8 +21,10 @@ int main(int argc, char *argv[])
 		return -3;
 	}
 
+	QCoreApplication a(argc, argv);
+
 	Convert c(input,output);
 	c.start();
 
-	return 0;
+	return a.exec();
 }
