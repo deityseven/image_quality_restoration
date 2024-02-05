@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <json/json.hpp>
 #include <direct.h>
+#include <qprocess.h>
+#include <qdir.h>
 
 Convert::Convert(const std::string input, const std::string output)
 	:input(input),
@@ -38,31 +40,13 @@ void Convert::getSecondsCount()
 
 	sprintf(this->command, "%s/bin/ffprobe.exe -loglevel quiet -print_format json -show_format -i %s 2>&1", this->ffmpegHome.c_str(), this->input.c_str());
 
-	FILE* pipe = _popen(this->command, "r");
-	if (pipe == nullptr)
-	{
-		perror("_popen return nullptr\n");
-		exit(-1);
-	}
-
-	do
-	{
-		fseek(pipe, 0, SEEK_END);
-		long pipeSize = ftell(pipe);
-		fread(this->buffer, sizeof(char), pipeSize, pipe);
-	} while (!feof(pipe));
-
-	_pclose(pipe);
-	/*
-	std::string content;
-	while (fgets(this->buffer, this->bufferSize, pipe))
-	{
-		content += this->buffer;
-		memset(this->buffer, 0, this->bufferSize);
-	}
-	*/
-
-	auto json = nlohmann::json::parse(this->buffer);
+	QProcess process;
+	process.start(this->command, QIODevice::OpenModeFlag::ReadOnly);
+	process.waitForStarted();
+	process.waitForFinished();
+	std::string jsonData = process.readAll().toStdString();
+	
+	auto json = nlohmann::json::parse(jsonData);
 
 	this->secondsCount = std::stoi(json["format"]["duration"].get<std::string>());
 	this->format_name = json["format"]["format_name"].get<std::string>();
@@ -72,6 +56,9 @@ void Convert::startConvert()
 {
 	system("rmdir .\\merge /s /q");
 	system("mkdir .\\merge");
+	system("rmdir .\\secondsVideos /s /q");
+	system("mkdir .\\secondsVideos");
+	system("mkdir .\\finalVideos");
 
 	for (this->currentSeconds = 0; this->currentSeconds < this->secondsCount; ++this->currentSeconds)
 	{
@@ -82,9 +69,14 @@ void Convert::startConvert()
 		outputOneSecondsImage(this->currentSeconds);
 		distinctProcess(this->currentSeconds);
 		mergeImagesToVideo(this->currentSeconds);
+		mergeAudioToVideo(this->currentSeconds);
 
 		signal_progress(this->currentSeconds, this->secondsCount);
 	}
+
+	mergeAllVideo();
+
+	signal_progress(this->secondsCount, this->secondsCount);
 }
 
 void Convert::outputOneSecondsToTemp(unsigned long currentSeconds)
@@ -96,7 +88,7 @@ void Convert::outputOneSecondsToTemp(unsigned long currentSeconds)
 		" -t %d"
 		" -i %s"
 		" -c copy"
-		" ./temp/%d.mp4"
+		" ./temp/%08d.mp4"
 		" 2>&1",
 		this->ffmpegHome.c_str(),
 		currentSeconds,
@@ -104,58 +96,41 @@ void Convert::outputOneSecondsToTemp(unsigned long currentSeconds)
 		this->input.c_str(),
 		currentSeconds);
 
-	FILE* pipe = _popen(this->command, "r");
-	if (pipe == nullptr)
-	{
-		perror("_popen return nullptr\n");
-		exit(-1);
-	}
-
-	_pclose(pipe);
+	QProcess process;
+	process.start(this->command, QIODevice::OpenModeFlag::ReadOnly);
+	process.waitForStarted();
+	process.waitForFinished();
 }
 
 void Convert::peelOneSecondsAudio(unsigned long currentSeconds)
 {
 	memset(this->command, 0, this->bufferSize);
-	sprintf(this->command, "%s/bin/ffmpeg.exe -loglevel quiet -i ./temp/%d.mp4 -vn -acodec copy ./temp/%d.mp2 -y", this->ffmpegHome.c_str(), currentSeconds, currentSeconds);
+	sprintf(this->command, "%s/bin/ffmpeg.exe -loglevel quiet -i ./temp/%08d.mp4 -vn -acodec copy -c:a aac ./temp/%08d.mp3 -y", this->ffmpegHome.c_str(), currentSeconds, currentSeconds);
 
-	FILE* pipe = _popen(this->command, "r");
-	if (pipe == nullptr)
-	{
-		perror("_popen return nullptr\n");
-		exit(-1);
-	}
-
-	_pclose(pipe);
+	QProcess process;
+	process.start(this->command, QIODevice::OpenModeFlag::ReadOnly);
+	process.waitForStarted();
+	process.waitForFinished();
 
 	memset(this->command, 0, this->bufferSize);
-	sprintf(this->command, "%s/bin/ffmpeg.exe -loglevel quiet -i ./temp/%d.mp4 -an -vcodec copy ./temp/%d.mp4 -y", this->ffmpegHome.c_str(), currentSeconds, currentSeconds);
+	sprintf(this->command, "%s/bin/ffmpeg.exe -loglevel quiet -i ./temp/%08d.mp4 -an -vcodec copy ./temp/%08d.mp4 -y", this->ffmpegHome.c_str(), currentSeconds, currentSeconds);
 
-	pipe = _popen(this->command, "r");
-	if (pipe == nullptr)
-	{
-		perror("_popen return nullptr\n");
-		exit(-1);
-	}
-
-	_pclose(pipe);
+	process.start(this->command, QIODevice::OpenModeFlag::ReadOnly);
+	process.waitForStarted();
+	process.waitForFinished();
 }
 
 void Convert::outputOneSecondsImage(unsigned long currentSeconds)
 {
 	system("mkdir .\\temp\\images");
 	memset(this->command, 0, this->bufferSize);
-	sprintf(this->command, "%s/bin/ffmpeg.exe -loglevel quiet -i ./temp/%d.mp4 ", this->ffmpegHome.c_str(), currentSeconds);
-	strcat(this->command,"./temp/images/%3d.png -y");
+	sprintf(this->command, "%s/bin/ffmpeg.exe -loglevel quiet -i ./temp/%08d.mp4 ", this->ffmpegHome.c_str(), currentSeconds);
+	strcat(this->command,"./temp/images/%08d.png -y");
 
-	FILE* pipe = _popen(this->command, "r");
-	if (pipe == nullptr)
-	{
-		perror("_popen return nullptr\n");
-		exit(-1);
-	}
-
-	_pclose(pipe);
+	QProcess process;
+	process.start(this->command, QIODevice::OpenModeFlag::ReadOnly);
+	process.waitForStarted();
+	process.waitForFinished();
 }
 
 void Convert::distinctProcess(unsigned long currentSeconds)
@@ -168,21 +143,10 @@ void Convert::distinctProcess(unsigned long currentSeconds)
 	sprintf(this->command, "%s/realesrgan-ncnn-vulkan.exe -i ./temp/images -o ./temp/x4images -n realesrgan-x4plus 2>&1", 
 		this->realesrganHome.c_str(), currentSeconds);
 
-	FILE* pipe = _popen(this->command, "r");
-	if (pipe == nullptr)
-	{
-		perror("_popen return nullptr\n");
-		exit(-1);
-	}
-
-	do
-	{
-		fseek(pipe, 0, SEEK_END);
-		long pipeSize = ftell(pipe);
-		fread(this->buffer, sizeof(char), pipeSize, pipe);
-	} while (!feof(pipe));
-
-	_pclose(pipe);
+	QProcess process;
+	process.start(this->command, QIODevice::OpenModeFlag::ReadOnly);
+	process.waitForStarted();
+	process.waitForFinished();
 
 	//////////////////////////////////////
 	//保存当前工作目录
@@ -191,8 +155,7 @@ void Convert::distinctProcess(unsigned long currentSeconds)
 	std::string pwd(this->buffer);
 
 	std::string newPwd = this->codeFormerNcnnHome + "/bin";
-	_chdir(newPwd.c_str());
-
+	
 	memset(this->command, 0, this->bufferSize);
 	sprintf(this->command, "%s/bin/ncnn_codeformer.exe %s/temp/x4images 0 %s/temp/x8images 2>&1",
 		this->codeFormerNcnnHome.c_str(),
@@ -200,30 +163,16 @@ void Convert::distinctProcess(unsigned long currentSeconds)
 		pwd.c_str()
 		);
 
-	pipe = _popen(this->command, "r");
-	if (pipe == nullptr)
-	{
-		perror("_popen return nullptr\n");
-		exit(-1);
-	}
-
-	do
-	{
-		fseek(pipe, 0, SEEK_END);
-		long pipeSize = ftell(pipe);
-		fread(this->buffer, sizeof(char), pipeSize, pipe);
-	} while (!feof(pipe));
-
-	_pclose(pipe);
-
-	_chdir(pwd.c_str());
+	process.setWorkingDirectory(QString::fromStdString(newPwd));
+	process.start(this->command, QIODevice::OpenModeFlag::ReadOnly);
+	process.waitForStarted();
+	process.waitForFinished();
 
 	////////////////////////////////////
 	//进入虚拟环境 codefomer
 	//保存当前工作目录
 	memset(this->buffer, 0, this->bufferSize);
 	newPwd = this->codeFormerHome;
-	_chdir(newPwd.c_str());
 
 	memset(this->command, 0, this->bufferSize);
 	sprintf(this->command, "conda activate codefomer & python inference_codeformer.py -w 0 -i %s/temp/x8images -o %s/temp/codeformer 2>&1",
@@ -231,23 +180,10 @@ void Convert::distinctProcess(unsigned long currentSeconds)
 		pwd.c_str()
 	);
 
-	pipe = _popen(this->command, "r");
-	if (pipe == nullptr)
-	{
-		perror("_popen return nullptr\n");
-		exit(-1);
-	}
-
-	do
-	{
-		fseek(pipe, 0, SEEK_END);
-		long pipeSize = ftell(pipe);
-		fread(this->buffer, sizeof(char), pipeSize, pipe);
-	} while (!feof(pipe));
-
-	_pclose(pipe);
-
-	_chdir(pwd.c_str());
+	process.setWorkingDirectory(QString::fromStdString(newPwd));
+	process.start(this->command, QIODevice::OpenModeFlag::ReadOnly);
+	process.waitForStarted();
+	process.waitForFinished();
 }
 
 void Convert::mergeImagesToVideo(unsigned long currentSeconds)
@@ -258,23 +194,72 @@ void Convert::mergeImagesToVideo(unsigned long currentSeconds)
 	sprintf(this->command, "%s/bin/ffmpeg.exe -f image2", this->ffmpegHome.c_str());
 	char outFile[40];
 	memset(outFile, 0, 40);
-	sprintf(outFile, " ./merge/%d.mp4 2>&1", currentSeconds);
-	strcat(this->command, " -i ./temp/codeformer/final_results/%3d.png -vcodec libx264 -r 60 -b:v 35m -crf 0 -vf scale=2560:1440");
+	sprintf(outFile, " ./merge/%08d.mp4 2>&1", currentSeconds);
+	strcat(this->command, " -i ./temp/codeformer/final_results/%08d.png -vcodec libx264 -r 60 -b:v 35m -crf 0 -vf scale=2560:1440");
 	strcat(this->command, outFile);
 
-	FILE* pipe = _popen(this->command, "r");
-	if (pipe == nullptr)
-	{
-		perror("_popen return nullptr\n");
-		exit(-1);
-	}
+	QProcess process;
+	process.start(this->command, QIODevice::OpenModeFlag::ReadOnly);
+	process.waitForStarted();
+	process.waitForFinished();
+}
 
-	do
-	{
-		fseek(pipe, 0, SEEK_END);
-		long pipeSize = ftell(pipe);
-		fread(this->buffer, sizeof(char), pipeSize, pipe);
-	} while (!feof(pipe));
+void Convert::mergeAudioToVideo(unsigned long currentSeconds)
+{
+	memset(this->command, 0, this->bufferSize);
+	memset(this->buffer, 0, this->bufferSize);
 
-	_pclose(pipe);
+	char videoPath[40];
+	char audioPath[40];
+	char outputPath[40];
+	memset(videoPath, 0, 40);
+	memset(audioPath, 0, 40);
+	memset(outputPath, 0, 40);
+	sprintf(videoPath, "./merge/%08d.mp4", currentSeconds);
+	sprintf(audioPath, "./merge/%08d.mp3", currentSeconds);
+	sprintf(outputPath, "./secondsVideos/%08d.mp4", currentSeconds);
+	//ffmpeg -i video.mp4 -i audio.mp3 -c:v copy -c:a aac output.mp4
+	sprintf(this->command, "%s/bin/ffmpeg.exe -i %s -i %s -c:v copy -c:a aac %s", 
+		this->ffmpegHome.c_str(),
+		videoPath,
+		audioPath,
+		outputPath);
+	
+	QProcess process;
+	process.start(this->command, QIODevice::OpenModeFlag::ReadOnly);
+	process.waitForStarted();
+	process.waitForFinished();
+}
+
+void Convert::mergeAllVideo()
+{
+	memset(this->command, 0, this->bufferSize);
+
+	//mp4转到ts流 
+	//ffmpeg -i X.mp4 -vcodec copy -acodec copy -vbsf h264_mp4toannexb X.ts
+	sprintf(this->command, "%s/bin/ffmpeg.exe",
+		this->ffmpegHome.c_str());
+	strcat(this->command, " -i ./secondsVideos/%08d.mp4 -vcodec copy -acodec copy -vbsf h264_mp4toannexb ./secondsVideos/%08d.ts");
+
+	QProcess process;
+	process.start(this->command, QIODevice::OpenModeFlag::ReadOnly);
+	process.waitForStarted();
+	process.waitForFinished();
+
+	//ts流 合并 mp4
+	QDir finalVideos("./finalVideos");
+	auto list = finalVideos.entryList();
+
+	//ffmpeg -i ./secondsVideos/%08d.ts output.mp4
+	sprintf(this->command, "%s/bin/ffmpeg.exe",
+		this->ffmpegHome.c_str());
+	strcat(this->command, " -i ./secondsVideos/%08d.ts");
+	char outputPath[40];
+	memset(outputPath, 0, 40);
+	sprintf(outputPath, " ./finalVideos/%08d.mp4", list.size());
+	strcat(this->command, outputPath);
+
+	process.start(this->command, QIODevice::OpenModeFlag::ReadOnly);
+	process.waitForStarted();
+	process.waitForFinished();
 }

@@ -31,8 +31,10 @@ private:
     void distinctProcess(unsigned long currentSeconds);
     //合并图片到视频
     void mergeImagesToVideo(unsigned long currentSeconds);
-
-
+    //合并音频到视频
+    void mergeAudioToVideo(unsigned long currentSeconds);
+    //合并所有视频
+    void mergeAllVideo();
 private:
     std::string input;
     std::string output;

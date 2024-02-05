@@ -4,6 +4,25 @@ project(core)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+#全局moc
+set(CMAKE_AUTOMOC ON)
+
+#使用rcc处理qrc
+set(IMAGE_RCCS ../../resource/resource.qrc)
+qt5_add_resources(IMAGE_RCC_SRCS ${IMAGE_RCCS})
+
+#ui文件
+file(GLOB uis "${CMAKE_SOURCE_DIR}/src/ui/*.ui")
+
+#uic
+QT5_WRAP_UI(UI_FILES
+  ${uis}
+)
+
+set(UI_SRC
+	${uis}
+)
+
 set(CONVERT_SRC
 	convert.h
 	convert.cpp
@@ -15,12 +34,14 @@ set(MAIN_SRC
 
 set(SRCS 
 	${MAIN_SRC}
+	${UI_SRC}
 	${CONVERT_SRC}
 )
 
 #筛选显示
 source_group(main FILES ${MAIN_SRC})
 source_group(convert FILES ${CONVERT_SRC})
+source_group(ui FILES ${UI_SRC})
 
 #包含目录
 include_directories(${CMAKE_CURRENT_BINARY_DIR}
@@ -63,4 +84,8 @@ set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_ENVIRONMENT "Path=$(Pat
 
 #链接库
 target_link_libraries(${PROJECT_NAME}
+    ${Qt5Core_LIBRARIES}
+    ${Qt5Gui_LIBRARIES}
+    ${Qt5Widgets_LIBRARIES}
+    ${Qt5Network_LIBRARIES}
 )

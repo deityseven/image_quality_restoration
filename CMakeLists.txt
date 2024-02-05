@@ -4,15 +4,31 @@ cmake_minimum_required(VERSION 3.0.0)
 #项目名称
 project(image_quality_restoration)
 
+#C++标准 
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+#设置搜索路径
+if(WIN32)
+set(CMAKE_PREFIX_PATH D:/Qt/Qt5.12.4/5.12.4/msvc2015_64)
+endif(WIN32)
+if(UNIX)
+set(CMAKE_PREFIX_PATH /opt/Qt5.12.4/5.12.4/gcc_64)
+endif(UNIX)
+
 #启用颜色输出
 set(CMAKE_COLOR_MAKEFILE ON)
 
 #enable project folders
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-#C++标准 
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+######################################
+#Qt 目录
+find_package(Qt5Core REQUIRED)
+find_package(Qt5Gui REQUIRED)
+find_package(Qt5Widgets REQUIRED)
+find_package(Qt5Network REQUIRED)
+find_package(Qt5Multimedia REQUIRED)
 
 #包含导出头文件模块
 include(GenerateExportHeader)
