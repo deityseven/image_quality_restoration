@@ -255,16 +255,30 @@ void Convert::mergeAllVideo()
 	process.waitForFinished(-1);
 
 	//ts流 合并 mp4
-	QDir finalVideos("./finalVideos");
-	auto list = finalVideos.entryList();
-
 	//ffmpeg -i ./secondsVideos/%08d.ts output.mp4
-	sprintf(this->command, "%s/bin/ffmpeg.exe",
-		this->ffmpegHome.c_str());
-	strcat(this->command, " -i ./secondsVideos/%08d.ts");
+    QDir secondsVideos("./secondsVideos");
+	auto secondsVideosFileList = secondsVideos.entryList(QDir::Files);
+    std::string concat = "concat:";
+    char buf[100];
+    for(auto i = 0; i < secondsVideosFileList.size(); ++i)
+    {
+        memset(buf, 0, sizeof(buf));
+        sprintf(buf, " %08d.ts |", i);
+        concat += buf;
+    }
+    
+    concat.pop_back();
+
+	sprintf(this->command, "%s/bin/ffmpeg.exe -i \"%s\"",
+		this->ffmpegHome.c_str(),
+		concat.c_str());
+
+    QDir finalVideos("./finalVideos");
+	auto finalVideosList = finalVideos.entryList(QDir::Files);
+
 	char outputPath[40];
 	memset(outputPath, 0, 40);
-	sprintf(outputPath, " ./finalVideos/%08d.mp4", list.size());
+	sprintf(outputPath, " ./finalVideos/%08d.mp4", finalVideosList.size());
 	strcat(this->command, outputPath);
 
 	process.start(this->command, QIODevice::OpenModeFlag::ReadOnly);
